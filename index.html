@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tokohku - Spin & Kuis Sejarah</title>
+  <style>
+    :root{--bg1:#83a4d4;--bg2:#b6fbff}
+    /* Body layout changed to column so footer can sit at bottom center */
+    body{
+      font-family:Arial,Helvetica,sans-serif;
+      margin:0;
+      min-height:100vh;
+      background:linear-gradient(to right,var(--bg1),var(--bg2));
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:flex-start;
+      padding:20px;
+      box-sizing:border-box;
+    }
+    /* allow main content to grow so footer stays at bottom */
+    .wrap{width:100%;max-width:1200px;background:#fff;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,.15);display:flex;gap:20px;padding:18px;box-sizing:border-box;flex:0 1 auto}
+    /* LEFT: game */
+    .left{flex:1;min-width:420px;padding-right:12px}
+    .right{width:380px;border-left:1px solid #eee;padding-left:16px}
+    h1{margin:0 0 10px 0;font-size:20px}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+    .coins{background:#ffc107;padding:8px 12px;border-radius:20px;font-weight:700}
+    .logout{background:#dc3545;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
+
+    /* auth - reverted to compact login UI similar to original */
+    #auth{display:block}
+    .card{background:#fff;padding:14px;border-radius:10px}
+    .login-compact{display:flex;flex-direction:column;gap:8px;max-width:360px}
+    .login-compact h3{margin:0}
+    input,select,textarea{width:100%;padding:10px;margin:8px 0;border:1px solid #ddd;border-radius:8px;box-sizing:border-box}
+    button.btn{background:#28a745;color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer}
+    button.btn[disabled]{opacity:.5;cursor:not-allowed}
+
+    /* slots 2 columns */
+    .slot-area{display:flex;justify-content:center;align-items:center;gap:18px;margin:12px 0}
+    .slot{width:170px;height:170px;border-radius:12px;border:3px solid #333;background:#f6f6f6;display:flex;align-items:center;justify-content:center;flex-direction:column;box-sizing:border-box}
+    .slot img{max-width:92%;max-height:92%;border-radius:6px}
+    .slot .label{font-weight:700;margin-top:6px}
+
+    #spinBtn{background:#ff9933;color:#fff;padding:12px 18px;border-radius:10px;border:none;cursor:pointer}
+
+    /* question area */
+    #questionArea{margin-top:12px;padding:12px;border-radius:10px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.06);display:none;opacity:0;transition:opacity .4s}
+    #questionText{font-weight:700;margin-bottom:8px}
+    .opt{display:block;text-align:left;margin:6px 0}
+    .opt button{width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;background:#007bff;color:#fff;cursor:pointer}
+
+    /* timer */
+    .timer{font-weight:700}
+
+    /* leaderboard */
+    .leaderboard{background:#fff;padding:12px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:12px}
+    .leaderboard h3{margin:0 0 8px 0}
+    .lb-item{display:flex;justify-content:space-between;padding:6px 4px;border-bottom:1px dashed #eee}
+
+    /* daily quiz card */
+    .daily-quiz{background:#fff;padding:12px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+
+    .muted{font-size:13px;color:#666}
+
+    /* fade hide */
+    .show{display:block;opacity:1}
+
+    /* mobile fallback */
+    @media(max-width:900px){
+      .wrap{flex-direction:column}
+      .right{width:100%;border-left:none;padding-left:0}
+    }
+
+    /* Orientation-specific tweaks */
+    /* Portrait (typical phone held vertically) */
+    @media (orientation:portrait) and (max-width:1000px) {
+      .wrap{padding:14px;gap:12px}
+      .left{min-width:initial;padding-right:0}
+      .right{width:100%;border-left:none;padding-left:0}
+      .slot{width:130px;height:130px}
+      .login-compact{max-width:100%}
+      .card{padding:12px}
+      h1{font-size:18px}
+      #spinBtn{padding:10px 14px}
+    }
+
+    /* Landscape (wider screens like desktop or phone turned sideways) */
+    @media (orientation:landscape) {
+      .wrap{max-width:1400px}
+      .slot{width:190px;height:190px}
+      .right{width:360px}
+      .left{min-width:420px}
+      h1{font-size:20px}
+    }
+
+    /* Footer styling: bottom center after content */
+    footer.site-footer{
+      width:100%;
+      text-align:center;
+      padding:10px 0;
+      margin-top:16px;
+      color:#333;
+      font-weight:600;
+      /* keep footer visually separated from content */
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="left">
+      <div class="topbar">
+        <h1>Tokohku</h1>
+        <div>
+          <!-- coinsDisplay: hidden by default (login page won't show koin). 
+               It will be shown after login via JS. -->
+          <span class="coins" id="coinsDisplay" style="display:none">💰 0</span>
+          <button class="logout" id="logoutBtn" style="display:none">Logout</button>
+        </div>
+      </div>
+
+      <!-- AUTH: compact (reverted style) -->
+      <div id="auth">
+        <div class="card login-compact">
+          <h3>Masuk ke Tokohku</h3>
+          <input id="username" placeholder="Username">
+          <input id="password" type="password" placeholder="Password">
+          <div style="display:flex;gap:8px">
+            <button class="btn" id="loginBtn">Login</button>
+            <button id="showRegisterBtn" style="background:#007bff;color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer">Daftar</button>
+          </div>
+        </div>
+
+        <div class="card" id="registerCard" style="display:none;margin-top:10px;max-width:360px">
+          <h3>Daftar Akun</h3>
+          <input id="rusername" placeholder="Username baru">
+          <input id="rpassword" type="password" placeholder="Password baru">
+          <button class="btn" id="regBtn">Daftar</button>
+        </div>
+      </div>
+
+      <!-- GAME AREA -->
+      <div id="game" style="display:none">
+        <div class="slot-area">
+          <div class="slot" id="slotA"><img src="images/tokoh.jpg" alt="tokoh"><div class="label" id="labelA" style="display:none"></div></div>
+          <div class="slot" id="slotB"><img src="images/tokoh.jpg" alt="tokoh"><div class="label" id="labelB" style="display:none"></div></div>
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:center">
+          <button id="spinBtn">Spin (10 Koin)</button>
+        </div>
+
+        <div id="questionArea">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <div id="questionText">Siapakah tokoh ini?</div>
+            <div class="timer" id="timer">60s</div>
+          </div>
+          <div id="options"></div>
+          <div id="qMessage" style="margin-top:8px;font-weight:700"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT: leaderboard + daily quiz (separate column, tidak menyatu dengan spin) -->
+    <div class="right">
+      <div class="leaderboard">
+        <h3>Leaderboard</h3>
+        <div id="leaderList"></div>
+        <div style="margin-top:10px" class="muted">Medali diberikan untuk total jawaban benar: 10, 25, 50, 100</div>
+      </div>
+
+      <div class="daily-quiz" id="dailyQuizCard">
+        <h3>Kuis Harian</h3>
+        <div id="dailyInfo" class="muted">Sisa percobaan hari ini: <span id="dailyRemaining">5</span></div>
+        <div id="dailyCooldown" class="muted" style="margin-top:6px;display:none">Silahkan coba lagi dalam: <span id="cooldownTimer">00:00:00</span></div>
+        <div id="dailyQuestionArea" style="margin-top:8px;display:none">
+          <div id="dailyQuestionText" style="font-weight:700;margin-bottom:8px"></div>
+          <div id="dailyOptions"></div>
+          <div id="dailyMessage" style="margin-top:8px;font-weight:700"></div>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+          <button id="startDailyBtn" class="btn">Mulai Kuis</button>
+          <button id="nextDailyBtn" style="display:none;background:#17a2b8;color:#fff;border:none;padding:8px;border-radius:8px;cursor:pointer">Soal Berikutnya</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Footer moved here, centered at bottom -->
+  <footer class="site-footer">
+    © GBLSI Since 2025.
+  </footer>
+
+<script>
+// ========================
+// DATA: TOKOH STOCK & QUIZ
+// ========================
+const defaultStock = [
+  {name:'Soekarno', img:'https://i.imgur.com/UnbBLmK.jpeg'},
+  {name:'Mohammad Hatta', img:'https://i.imgur.com/02I00yp.jpeg'},
+  {name:'Kartini', img:'https://i.imgur.com/ViRegbB.jpeg'},
+  {name:'Sutan Sjahrir', img:'https://i.imgur.com/FQ7tYVo.jpeg'},
+  {name:'Soeharto', img:'https://i.imgur.com/8mOFgtt.jpeg'},
+  {name:'Gatot Subroto', img:'https://i.imgur.com/blNoHAR.jpeg'},
+  {name:'Diponegoro', img:'https://i.imgur.com/Dty2T7S.jpeg'},
+  {name:'Cut Nyak Dhien', img:'https://i.imgur.com/vKx4bGD.jpeg'},
+  {name:'Sudirman', img:'https://i.imgur.com/6idjzR4.jpeg'},
+  {name:'Pattimura', img:'https://i.imgur.com/AFKTO58.jpeg'},
+  {name:'Bung Tomo', img:'https://i.imgur.com/3gy5pq9.jpeg'},
+  {name:'Tjipto Mangunkusumo', img:'https://i.imgur.com/pxfNSdi.jpeg'},
+  {name:'Tan Malaka', img:'https://i.imgur.com/vABm7uJ.jpeg'},
+  {name:'R.A. Kartini', img:'https://i.imgur.com/ouFWUVn.jpeg'},
+  {name:'Gajah Mada', img:'https://i.imgur.com/AKSQb4i.jpeg'}
+];
+
+const quizPool = [
+  {q:'Siapakah presiden pertama Republik Indonesia?', o:['Soeharto','Soekarno','B.J. Habibie'], a:1},
+  {q:'Siapakah yang dikenal sebagai Proklamator kemerdekaan Indonesia bersama Soekarno?', o:['Sutan Sjahrir','Mohammad Hatta','Tan Malaka'], a:1},
+  {q:'Sisingamangaraja adalah pahlawan dari daerah mana?', o:['Sumatera Utara','Jawa Tengah','Bali'], a:0},
+  {q:'Peristiwa Rengasdengklok berhubungan dengan?', o:['Perundingan ekonomi','Proklamasi kemerdekaan','Pembagian tanah'], a:1},
+  {q:'Siapakah tokoh pergerakan emansipasi wanita di Indonesia?', o:['R.A. Kartini','Cut Nyak Dhien','Sudirman'], a:0},
+  {q:'Pertempuran Surabaya 1945 dipelopori oleh?', o:['Bung Tomo','Sudirman','Soekarno'], a:0},
+  {q:'Perjanjian Linggarjati terjadi pada tahun?', o:['1946','1949','1945'], a:0},
+  {q:'Siapa yang memimpin perlawanan Diponegoro?', o:['Diponegoro','Pattimura','Cut Nyak Dhien'], a:0},
+  {q:'Bendera Merah Putih pertama kali dikibarkan pada tanggal?', o:['17 Agustus 1945','1 Juni 1945','10 November 1945'], a:0},
+  {q:'Sumpah Pemuda dikumandangkan pada tahun?', o:['1928','1945','1918'], a:0},
+  {q:'Tokoh nasional yang dikenal sebagai Bapak Pendidikan adalah?', o:['Ki Hajar Dewantara','Sutan Sjahrir','Tan Malaka'], a:0},
+  {q:'Peristiwa G30S terjadi pada tahun?', o:['1965','1955','1975'], a:0},
+  {q:'Siapa pahlawan dari Aceh yang memimpin perlawanan melawan Belanda?', o:['Teuku Umar','Sudirman','Gatot Subroto'], a:0},
+  {q:'Sutan Sjahrir dikenal sebagai?', o:['Pemimpin militer','Politisi dan perdana menteri pertama','Penyair'], a:1},
+  {q:'Kongres Pemuda II menghasilkan?', o:['Piagam Jakarta dan Sumpah Pemuda','Deklarasi perang','Perjanjian dagang'], a:0},
+  {q:'Peristiwa proklamasi kemerdekaan dibacakan pada pukul berapa (17 Agustus 1945)?', o:['10:00','10:30','12:00'], a:0},
+  {q:'Siapa pemimpin perjuangan Pangeran Diponegoro?', o:['Pangeran Diponegoro','Sultan Hasanuddin','Gajah Mada'], a:0},
+  {q:'Cut Nyak Dhien berasal dari pulau?', o:['Sumatera','Jawa','Sulawesi'], a:0},
+  {q:'Siapa yang menulis Surat Perintah Sebelas Maret (Supersemar)?', o:['Soeharto','Sukarno','B.J. Habibie'], a:0},
+  {q:'Perjanjian yang mengakhiri agresi militer Belanda II pada 1949 adalah?', o:['Perjanjian Renville','Konferensi Meja Bundar','Perjanjian Linggarjati'], a:1},
+  {q:'Bung Tomo terkenal karena pidatonya pada peristiwa?', o:['Perang Diponegoro','Pertempuran Surabaya','Perjanjian Renville'], a:1},
+  {q:'Sudirman adalah panglima besar pada masa?', o:['Perang Kemerdekaan','Perang Dunia II','Perang Aceh'], a:0},
+  {q:'Tokoh yang mempelopori Gerakan 5 Mei (Contoh) bukan tokoh sejarah utama?', o:['(trick)','Soekarno','Mohammad Hatta'], a:0},
+  {q:'Nama lain B.J. Habibie adalah?', o:['Bacharuddin Jusuf Habibie','Budi Jaya Habibie','Bambang J. Habibie'], a:0},
+  {q:'Pattimura memimpin perlawanan di pulau?', o:['Maluku','Sumatera','Jawa'], a:0},
+  {q:'Tanggal Sumpah Pemuda?', o:['28 Oktober 1928','17 Agustus 1928','1 Januari 1928'], a:0},
+  {q:'Siapa pahlawan wanita dari Aceh yang memimpin perlawanan?', o:['Cut Nyak Dhien','R.A. Kartini','Dewi Sartika'], a:0},
+  {q:'Nama panglima perang yang terkenal saat perang kemerdekaan adalah?', o:['Jenderal Sudirman','Sutan Sjahrir','Sukarno'], a:0},
+  {q:'Siapa tokoh yang terkenal dengan kebijakan Orde Baru?', o:['Soekarno','Soeharto','B.J. Habibie'], a:1},
+  {q:'Peristiwa "Perang Diponegoro" berlangsung pada abad ke?', o:['19','18','17'], a:0},
+  {q:'Siapa pendiri Taman Siswa?', o:['Ki Hajar Dewantara','R.A. Kartini','Muhammad Yamin'], a:0}
+];
+
+// ========================
+// GAME STATE
+// ========================
+let characters = []; // loaded from localStorage or defaultStock
+let currentUser = null;
+let coins = 0;
+let spinCounter = 0; // counts spins since last reset
+let lastIndex = -1;
+let maxDailyQuiz = 5; // requirement 11
+let dailyCorrect = 0;
+let dailyAttempted = 0;
+
+// Daily quiz separate counters
+let dailyQuizAttemptsUsed = 0;
+let dailyQuizCorrect = 0;
+
+// cooldown settings (when daily attempts exhausted)
+const COOL_DOWN_SECONDS = 24 * 60 * 60; // 24 hours cooldown by default
+
+// leaderboard structure in localStorage: {username:{correct: N, medals:[], coins: N}}
+
+const pityMultipliers = [2,4,6,8,10];
+
+// ========================
+// UTIL & STORAGE
+// ========================
+function loadCharacters(){
+  const saved = JSON.parse(localStorage.getItem('tokohStock'));
+  if(saved && Array.isArray(saved) && saved.length>0){ characters = saved; }
+  else { characters = defaultStock.slice(); localStorage.setItem('tokohStock', JSON.stringify(characters)); }
+}
+
+function saveCharacters(){ localStorage.setItem('tokohStock', JSON.stringify(characters)); }
+
+function importTokohList(list){
+  // list: array of {name,img}
+  if(!Array.isArray(list)) throw new Error('List harus array');
+  characters = list.slice(); saveCharacters(); alert('Stok tokoh diperbarui via import. Total: '+characters.length);
+}
+// expose for chat-based updates
+window.importTokohList = importTokohList;
+
+function loadGameForUser(u){
+  currentUser = u;
+  const key = `game_${u}`;
+  const saved = JSON.parse(localStorage.getItem(key) || 'null');
+
+  if(saved){
+    // jika saved.coins ada sebagai number (termasuk 0), pakai itu; jika tidak ada, default 0
+    coins = (typeof saved.coins === 'number') ? saved.coins : 0;
+    spinCounter = saved.spinCounter || 0;
+    dailyCorrect = saved.dailyCorrect || 0;
+    dailyAttempted = saved.dailyAttempted || 0;
+    dailyQuizAttemptsUsed = saved.dailyQuizAttemptsUsed || 0;
+    dailyQuizCorrect = saved.dailyQuizCorrect || 0;
+  } else {
+    // user baru -> beri 0 terlebih dahulu, lalu berikan bonus login jika berlaku di bawah
+    coins = 0;
+    spinCounter = 0;
+    dailyCorrect = 0;
+    dailyAttempted = 0;
+    dailyQuizAttemptsUsed = 0;
+    dailyQuizCorrect = 0;
+  }
+
+  // BONUS LOGIN: berikan 20 koin sekali setiap 24 jam
+  const lastKey = `lastDailyLogin_${u}`;
+  const lastObj = JSON.parse(localStorage.getItem(lastKey) || 'null');
+  const now = Date.now();
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+  if(!lastObj || !lastObj.ts || (now - lastObj.ts >= ONE_DAY_MS)){
+    // berikan bonus 20 koin pada saat login (baru atau sudah >24 jam)
+    coins = (typeof coins === 'number' ? coins : 0) + 20;
+    localStorage.setItem(lastKey, JSON.stringify({ts: now}));
+  }
+  // Simpan game (agar coins terbaru tersimpan)
+  const toSave = { coins, spinCounter, dailyCorrect, dailyAttempted, dailyQuizAttemptsUsed, dailyQuizCorrect };
+  localStorage.setItem(key, JSON.stringify(toSave));
+
+  // restore cooldown if any
+  const coolKey = `dailyCooldown_${u}`; const cd = JSON.parse(localStorage.getItem(coolKey)||'null'); if(cd && cd.expires){ startCooldownCountdown(cd.expires); }
+  updateUI();
+}
+
+function saveGameForUser(){
+  if(!currentUser) return;
+  const key = `game_${currentUser}`;
+  // pastikan menyimpan nilai numerik yang benar
+  const payload = {
+    coins: (typeof coins === 'number' ? coins : Number(coins) || 0),
+    spinCounter: spinCounter || 0,
+    dailyCorrect: dailyCorrect || 0,
+    dailyAttempted: dailyAttempted || 0,
+    dailyQuizAttemptsUsed: dailyQuizAttemptsUsed || 0,
+    dailyQuizCorrect: dailyQuizCorrect || 0
+  };
+  localStorage.setItem(key, JSON.stringify(payload));
+}
+
+function updateUI(){ 
+  document.getElementById('coinsDisplay').textContent = `💰 ${coins}`;
+  document.getElementById('dailyRemaining').textContent = Math.max(0, maxDailyQuiz - dailyQuizAttemptsUsed);
+  updateLeaderboardUI();
+  // manage start button visibility depending on state and cooldown
+  const startBtn = document.getElementById('startDailyBtn'); const dailyArea = document.getElementById('dailyQuestionArea');
+  const cdDiv = document.getElementById('dailyCooldown');
+  const coolKey = currentUser? `dailyCooldown_${currentUser}`:null; const cd = coolKey? JSON.parse(localStorage.getItem(coolKey)||'null'):null;
+  if(cd && cd.expires && Date.now() < cd.expires){ // in cooldown
+    startBtn.style.display='none'; dailyArea.style.display='none'; cdDiv.style.display='block';
+  } else {
+    cdDiv.style.display='none';
+    if(dailyQuizAttemptsUsed>=maxDailyQuiz){ startBtn.style.display='none'; dailyArea.style.display='none'; }
+    else { if(dailyArea.style.display==='block'){ startBtn.style.display='none'; } else { startBtn.style.display='inline-block'; } }
+  }
+}
+
+// ========================
+// cooldown helper
+// ========================
+let cooldownInterval = null;
+function startCooldownForUser(secondsFromNow){ if(!currentUser) return; const expires = Date.now() + (secondsFromNow*1000); const coolKey = `dailyCooldown_${currentUser}`; localStorage.setItem(coolKey, JSON.stringify({expires})); startCooldownCountdown(expires); }
+
+function startCooldownCountdown(expires){ // clear existing
+  if(cooldownInterval) clearInterval(cooldownInterval);
+  const cdDiv = document.getElementById('dailyCooldown'); const timerSpan = document.getElementById('cooldownTimer');
+  function tick(){ const rem = Math.max(0, Math.floor((expires - Date.now())/1000)); if(rem<=0){ clearInterval(cooldownInterval); cooldownInterval=null; // reset daily attempts
+      if(currentUser){ dailyQuizAttemptsUsed = 0; saveGameForUser(); localStorage.removeItem(`dailyCooldown_${currentUser}`); }
+      cdDiv.style.display='none'; updateUI(); return; }
+    // display hh:mm:ss
+    const h = String(Math.floor(rem/3600)).padStart(2,'0'); const m = String(Math.floor((rem%3600)/60)).padStart(2,'0'); const s = String(rem%60).padStart(2,'0'); timerSpan.textContent = `${h}:${m}:${s}`; cdDiv.style.display='block'; }
+  tick(); cooldownInterval = setInterval(tick,1000);
+}
+
+// ========================
+// AUTH
+// ========================
+document.getElementById('showRegisterBtn').addEventListener('click', e=>{ e.preventDefault(); document.getElementById('registerCard').style.display='block'; });
+
+document.getElementById('regBtn').addEventListener('click', ()=>{ 
+  const u = document.getElementById('rusername').value.trim(); const p = document.getElementById('rpassword').value.trim();
+  if(!u||!p){ alert('Isi username & password'); return; }
+  const acc = JSON.parse(localStorage.getItem('tokoh_accounts')||'{}');
+  if(acc[u]){ alert('Username sudah ada'); return; }
+  acc[u] = {password:p};
+  localStorage.setItem('tokoh_accounts', JSON.stringify(acc));
+  alert('Daftar berhasil. Silakan login.');
+  document.getElementById('rusername').value='';document.getElementById('rpassword').value='';
+});
+
+document.getElementById('loginBtn').addEventListener('click', ()=>{ 
+  const u = document.getElementById('username').value.trim(); const p = document.getElementById('password').value.trim();
+  const acc = JSON.parse(localStorage.getItem('tokoh_accounts')||'{}');
+  if(!acc[u] || acc[u].password !== p){ alert('Username/password salah'); return; }
+  // login
+  document.getElementById('auth').style.display='none'; document.getElementById('game').style.display='block'; document.getElementById('logoutBtn').style.display='inline-block';
+  // show coins display when logged in
+  document.getElementById('coinsDisplay').style.display = 'inline-block';
+  loadGameForUser(u);
+  // ensure leaderboard entry exists
+  const lb = JSON.parse(localStorage.getItem('tokoh_lb')||'{}'); if(!lb[u]){ lb[u] = {correct:0,coins:coins,medals:[]}; localStorage.setItem('tokoh_lb', JSON.stringify(lb)); }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  saveGameForUser(); currentUser = null; document.getElementById('auth').style.display='block'; document.getElementById('game').style.display='none'; document.getElementById('logoutBtn').style.display='none';
+  // hide coin display again on logout (per request: remove koin on login page)
+  document.getElementById('coinsDisplay').style.display = 'none';
+});
+
+// ========================
+// LEADERBOARD
+// ========================
+function updateLeaderboardUI(){
+  const lbDiv = document.getElementById('leaderList'); lbDiv.innerHTML='';
+  const lb = JSON.parse(localStorage.getItem('tokoh_lb')||'{}');
+  const arr = Object.keys(lb).map(k=>({name:k,...lb[k]}));
+  arr.sort((a,b)=> (b.correct||0)-(a.correct||0));
+  arr.forEach(item=>{
+    const div = document.createElement('div'); div.className='lb-item';
+    const left = document.createElement('div'); left.textContent = item.name + (item.medals && item.medals.length? ' ('+item.medals.join(',')+')':'');
+    const right = document.createElement('div'); right.textContent = `Benar: ${item.correct||0}`;
+    div.appendChild(left); div.appendChild(right); lbDiv.appendChild(div);
+  });
+}
+
+function updateLeaderboardForUser(u){
+  const lb = JSON.parse(localStorage.getItem('tokoh_lb')||'{}'); if(!lb[u]) lb[u]={correct:0,coins:0,medals:[]};
+  lb[u].correct = (lb[u].correct||0) + 1; lb[u].coins = coins;
+  const thresholds = [10,25,50,100]; thresholds.forEach(t=>{ if(lb[u].correct>=t && !lb[u].medals.includes(t)){ lb[u].medals.push(t); } });
+  localStorage.setItem('tokoh_lb', JSON.stringify(lb)); updateLeaderboardUI();
+}
+
+// ========================
+// SPIN LOGIC: 2 slots behavior
+// ========================
+function pickRandomIndex(){ if(characters.length===0) return -1; return Math.floor(Math.random()*characters.length); }
+
+function shouldTriggerQuestion(){
+  if(dailyAttempted>=maxDailyQuiz) return false;
+  for(const m of pityMultipliers){ if(spinCounter % m === 0){ return Math.random()<0.6; } }
+  return false;
+}
+
+let spinAnimating=false;
+
+document.getElementById('spinBtn').addEventListener('click', ()=>{
+  if(!currentUser){ alert('Silakan login terlebih dahulu.'); return; }
+  if(coins<10){ alert('Koin tidak cukup'); return; }
+  if(spinAnimating) return;
+  coins -= 10; spinCounter++; saveGameForUser(); updateUI();
+  spinAnimating=true;
+
+  const willTrigger = shouldTriggerQuestion();
+  let finalA, finalB, finalIdxA, finalIdxB;
+
+  if(willTrigger){
+    // pity: ensure same tokoh in both slots (prefer lastIndex if available)
+    if(lastIndex>=0) finalIdxA = lastIndex; else finalIdxA = pickRandomIndex();
+    finalIdxB = finalIdxA;
+    lastIndex = finalIdxA;
+  } else {
+    // normal spin: choose two DIFFERENT random indices for final images
+    if(characters.length===0){ finalIdxA = finalIdxB = -1; }
+    else if(characters.length===1){ finalIdxA = finalIdxB = 0; }
+    else {
+      finalIdxA = pickRandomIndex();
+      finalIdxB = pickRandomIndex();
+      let tries = 0; while(finalIdxB === finalIdxA && tries<8){ finalIdxB = pickRandomIndex(); tries++; }
+      lastIndex = finalIdxA; // update lastIndex to one of them
+    }
+  }
+
+  const tokA = characters[finalIdxA] || {name:'-',img:''};
+  const tokB = characters[finalIdxB] || {name:'-',img:''};
+
+  const sA = document.querySelector('#slotA img'); const sB = document.querySelector('#slotB img'); const lA = document.getElementById('labelA'); const lB = document.getElementById('labelB');
+  let iters = 20; const intv = setInterval(()=>{
+    // interim randomization: always random flash to show motion
+    const r1 = Math.floor(Math.random()*characters.length);
+    const r2 = Math.floor(Math.random()*characters.length);
+    sA.src = characters[r1]?.img || '';
+    sB.src = characters[r2]?.img || '';
+    lA.textContent = '';
+    lB.textContent = '';
+    iters--; if(iters<=0){ clearInterval(intv);
+      sA.src = tokA.img; sB.src = tokB.img; lA.textContent = ''; lB.textContent = ''; spinAnimating=false;
+      if(willTrigger){ showQuestionAbout(tokA); }
+      saveGameForUser(); updateUI(); }
+  },80);
+});
+
+// ========================
+// QUESTION MECHANICS (spin-triggered)
+// ========================
+let qTimer = null; let qTimeLeft = 60; function showQuestionAbout(tokoh){
+  const optionsDiv = document.getElementById('options'); optionsDiv.innerHTML='';
+  const others = characters.filter(c=>c.name!==tokoh.name).map(c=>c.name);
+  shuffleArray(others);
+  const choices = [tokoh.name, others[0]||'--', others[1]||'--']; shuffleArray(choices);
+  choices.forEach((ch,idx)=>{ const b = document.createElement('button'); b.textContent = ch; b.onclick = ()=>{ answerQuestion(ch,tokoh.name); }; b.className='optBtn'; const wrapper = document.createElement('div'); wrapper.className='opt'; wrapper.appendChild(b); optionsDiv.appendChild(wrapper); });
+
+  const qa = document.getElementById('questionArea'); document.getElementById('questionText').textContent = 'Siapakah tokoh ini?'; document.getElementById('qMessage').textContent='';
+  qa.classList.add('show'); qa.style.display='block'; setTimeout(()=>qa.style.opacity=1,20);
+
+  qTimeLeft = 60; document.getElementById('timer').textContent = qTimeLeft + 's';
+  qTimer = setInterval(()=>{ qTimeLeft--; document.getElementById('timer').textContent = qTimeLeft + 's'; if(qTimeLeft<=0){ clearInterval(qTimer); qTimer=null; onQuestionTimeout(); } },1000);
+}
+
+function onQuestionTimeout(){ document.getElementById('qMessage').textContent = 'Waktu habis! Tidak ada hadiah.'; hideQuestionWithFade(); dailyAttempted++; saveGameForUser(); updateUI(); }
+
+function answerQuestion(selected, correct){ clearInterval(qTimer); qTimer=null; if(selected===correct){ document.getElementById('qMessage').textContent = '✅ Jawaban benar! Kamu mendapatkan 10 koin.'; coins += 10; dailyCorrect++; saveGameForUser(); updateUI(); updateLeaderboardForUser(currentUser); } else { document.getElementById('qMessage').textContent = '❌ Salah. Tidak mendapat hadiah.'; }
+  dailyAttempted++; saveGameForUser(); updateUI(); setTimeout(()=>{ hideQuestionWithFade(); },1400);
+}
+
+function hideQuestionWithFade(){ const qa = document.getElementById('questionArea'); qa.style.opacity=0; setTimeout(()=>{ qa.style.display='none'; qa.classList.remove('show'); document.getElementById('options').innerHTML=''; document.getElementById('qMessage').textContent=''; },450); }
+
+// ========================
+// DAILY QUIZ UI & LOGIC
+// ========================
+let currentDailyIndex = -1; let dailyQTimer = null; let isPlayingDaily = false;
+function startDailyQuiz(){ if(!currentUser){ alert('Silakan login untuk mengikuti kuis harian.'); return; }
+  if(dailyQuizAttemptsUsed>=maxDailyQuiz){ alert('Batas kuis harian sudah habis untuk hari ini.'); return; }
+  // hide start button while playing
+  document.getElementById('startDailyBtn').style.display='none';
+  document.getElementById('nextDailyBtn').style.display='none';
+  isPlayingDaily = true;
+  showDailyQuestion();
+}
+
+document.getElementById('startDailyBtn').addEventListener('click', startDailyQuiz);
+
+document.getElementById('nextDailyBtn').addEventListener('click', ()=>{ showDailyQuestion(); });
+
+function showDailyQuestion(){
+  // pick a random question from pool
+  const qidx = Math.floor(Math.random()*quizPool.length);
+  currentDailyIndex = qidx;
+  renderDailyQuestion(quizPool[currentDailyIndex]);
+}
+
+function renderDailyQuestion(qobj){
+  document.getElementById('dailyQuestionArea').style.display='block';
+  document.getElementById('dailyMessage').textContent='';
+  document.getElementById('dailyQuestionText').textContent = qobj.q;
+  const opts = document.getElementById('dailyOptions'); opts.innerHTML='';
+
+  // build answer objects for randomization
+  const arr = qobj.o.map((opt,idx)=>({text:opt, correct: idx===qobj.a}));
+  shuffleArray(arr);
+
+  arr.forEach(item=>{
+    const b = document.createElement('button');
+    b.textContent = item.text;
+    b.className='optBtn';
+    b.style.marginBottom='6px'; b.style.width='100%';
+    b.onclick = ()=>{ answerDaily(item.text, qobj.o[qobj.a]); };
+    const wrap = document.createElement('div'); wrap.className='opt'; wrap.appendChild(b);
+    opts.appendChild(wrap);
+  });
+}
+
+function answerDaily(selected, correct){
+  if(dailyQuizAttemptsUsed>=maxDailyQuiz){ alert('Batas kuis harian sudah habis.'); return; }
+  dailyQuizAttemptsUsed++; saveGameForUser();
+  if(selected===correct){ document.getElementById('dailyMessage').textContent = '✅ Jawaban benar! Kamu mendapatkan 10 koin.'; dailyQuizCorrect++; coins += 10; saveGameForUser(); updateUI(); updateLeaderboardForUser(currentUser); }
+  else { document.getElementById('dailyMessage').textContent = '❌ Salah.'; }
+  document.getElementById('dailyRemaining').textContent = Math.max(0, maxDailyQuiz - dailyQuizAttemptsUsed);
+  // show next button only if there are remaining attempts
+  if(dailyQuizAttemptsUsed<maxDailyQuiz){ document.getElementById('nextDailyBtn').style.display='inline-block'; }
+  else {
+    // limit reached: remove options and hide question area
+    document.getElementById('dailyOptions').innerHTML='';
+    document.getElementById('dailyQuestionArea').style.display='none';
+    document.getElementById('nextDailyBtn').style.display='none';
+    isPlayingDaily = false;
+    // start cooldown (24 hours)
+    startCooldownForUser(COOL_DOWN_SECONDS);
+    document.getElementById('startDailyBtn').style.display='none';
+  }
+}
+
+// ========================
+// HELPERS
+// ========================
+function shuffleArray(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } }
+
+// init
+loadCharacters(); updateLeaderboardUI();
+
+// ensure coinsDisplay hidden on initial load (login page)
+document.getElementById('coinsDisplay').style.display = 'none';
+
+// expose to console for quick edits & chat-based import
+window._TOKOH = {characters, saveCharacters, loadCharacters, importTokohList};
+
+</script>
+</body>
+</html>
